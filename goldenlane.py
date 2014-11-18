@@ -21,13 +21,21 @@ from email.MIMEText import MIMEText
 from email import Encoders
 
 
-LOGIN = "<YOUR GOLDENLANE LOGIN>"
-PWD = "<YOUR GOLDENLANE PASSWORD>"
+CONFIG_FILE = "goldenlane.conf"
 
-GMAIL_USER = "<YOUR GMAIL EMAIL>"
-GMAIL_PWD = "<YOUR GMAIL PASSWORD>"
+# Load the config files
+cfg = SafeConfigParser()
+cfg.read(CONFIG_FILE)
 
-BASE_URL = "https://online.fusion-lifestyle.com/Connect3/MRMLogin.aspx"
+# Load configuration
+LOGIN = cfg.get('goldenlane', 'LOGIN')
+PWD = cfg.get('goldenlane', 'PASSWORD')
+GMAIL_USER = cfg.get('gmail', 'LOGIN')
+GMAIL_PWD = cfg.get('gmail', 'PASSWORD')
+BASE_URL = cfg.get('main', 'BASE_URL')
+START_TIME = cfg.get('booking', 'START_TIME')
+END_TIME = cfg.get('booking', 'END_TIME')
+DAYS_AHEAD = cfg.get('booking', 'DAYS_AHEAD')
 
 # the browser visibility
 VISIBILITY = False
@@ -74,20 +82,14 @@ def main():
     display = Display(visible=VISIBILITY, size=(800, 600))
     display.start()
 
-    logging.basicConfig(filename='golden_lane.log',level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    logging.basicConfig(filename='golden_lane.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     log = logging.getLogger("golden_lane")
-
-    # parser = ArgumentParser()
-    # cfg = SafeConfigParser()
-    # cfg.read(cfiles)
 
     now = datetime.now()
 
     booked = False  # booked flag
-    start_hour = "19"
-    end_hour = "20"
-    start_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(start_hour)
-    end_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(end_hour)
+    start_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(START_TIME)
+    end_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(END_TIME)
 
     log.info("booking outdoor tennis on day {0}".format(start_day_to_book))
 
@@ -125,12 +127,11 @@ def main():
 
     # select start time
     select = Select(driver.find_element_by_name(START_HOUR_SELECTION))
-    select.select_by_value(start_hour)
+    select.select_by_value(START_TIME)
 
     # select end time
     select = Select(driver.find_element_by_name(END_HOUR_SELECTION))
-    select.select_by_value(end_hour)
-
+    select.select_by_value(END_TIME)
 
     # click search button
     element = wait.until(expected_conditions.element_to_be_clickable((By.ID, SEARCH_BUTTON)))
@@ -145,13 +146,13 @@ def main():
     element.click()
 
     # cycle the next day button 7 times
-    for _ in xrange(7):
+    for _ in xrange(6):
         element = driver.find_element_by_name(NEXT_DAY)
         element.click()
 
     # book court TODO select court 1 or 2
     try:
-        elements = driver.find_elements_by_xpath("//td[@class='itemavailableDIOCANE']/input[@class='removeUnderLineAvailable']")
+        elements = driver.find_elements_by_xpath("//td[@class='itemavailable']/input[@class='removeUnderLineAvailable']")
         for element in elements:
             if not booked:
                 court = COURTS[element.get_attribute('name')]
@@ -170,6 +171,7 @@ def main():
     mail("stefano.borgia@gmail.com",
          "Tennis (Court {0})".format(court),
          "day: {0}".format(start_day_to_book))
+
     # close selenium
     driver.close()
 
