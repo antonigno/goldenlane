@@ -1,9 +1,15 @@
-from distutils.core import setup
+# from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='goldenlane',
     version='',
-    packages=['selenium', 'date-util', 'python-dateutil', 'pyvirtualdisplay'],
+    packages=[],
+    install_requires=[
+        'selenium',
+        'python-dateutil',
+        'pyvirtualdisplay'
+    ],
     url='',
     license='',
     author='',
