@@ -1,0 +1,16 @@
+[main]
+BASE_URL = https://online.fusion-lifestyle.com/Connect3/MRMLogin.aspx
+
+[goldenlane]
+LOGIN = <GOLDENLANE LOGIN>
+PASSWORD = <GOLDENLANE PASSWORD>
+
+[gmail]
+LOGIN = <YOUR GMAIL LOGIN>
+PASSWORD = <YOUR GMAIL PASSWORD>
+
+[booking]
+DAYS_AHEAD = 7
+# only hour
+START_TIME = 12
+END_TIME = 13
