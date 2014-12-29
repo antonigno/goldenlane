@@ -10,16 +10,13 @@ from dateutil.relativedelta import *
 import sys
 from pyvirtualdisplay import Display
 from ConfigParser import SafeConfigParser
-from argparse import ArgumentParser
 import logging
 import logging.config
 
 import smtplib
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEBase import MIMEBase
-from email.MIMEText import MIMEText
-from email import Encoders
 
+logging.basicConfig(filename='goldenlane.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger("goldenlane")
 
 CONFIG_FILE = "goldenlane.conf"
 
@@ -30,15 +27,20 @@ cfg.read(CONFIG_FILE)
 # Load configuration
 LOGIN = cfg.get('goldenlane', 'LOGIN')
 PWD = cfg.get('goldenlane', 'PASSWORD')
-GMAIL_USER = cfg.get('gmail', 'LOGIN')
-GMAIL_PWD = cfg.get('gmail', 'PASSWORD')
+GMAIL_USER = cfg.get('mail', 'LOGIN')
+GMAIL_PWD = cfg.get('mail', 'PASSWORD')
+TO = cfg.get('mail', 'TO').split(',')
 BASE_URL = cfg.get('main', 'BASE_URL')
 START_TIME = cfg.get('booking', 'START_TIME')
 END_TIME = cfg.get('booking', 'END_TIME')
 DAYS_AHEAD = cfg.get('booking', 'DAYS_AHEAD')
 
 # the browser visibility
-VISIBILITY = False
+visibility_bool = cfg.get('main', 'VISIBILITY')
+if visibility_bool in ['True', 'true']:
+    VISIBILITY = True
+else:
+    VISIBILITY = False
 
 # element names on pages
 MEMBER_ID = "ctl00$MainContent$InputLogin"
@@ -56,34 +58,27 @@ COURTS = {"ctl00$MainContent$grdResourceView$ctl02$ctl00": 1,
           "ctl00$MainContent$grdResourceView$ctl02$ctl01": 2}
 
 
-def mail(to, subject, text, attach=None):
-   msg = MIMEMultipart()
-   msg['From'] = GMAIL_USER
-   msg['To'] = to
-   msg['Subject'] = subject
-   if attach:
-      msg.attach(MIMEText(text))
-      part = MIMEBase('application', 'octet-stream')
-      part.set_payload(open(attach, 'rb').read())
-      Encoders.encode_base64(part)
-      part.add_header('Content-Disposition',
-                      'attachment; filename="{0}"'.format(path.basename(attach)))
-      msg.attach(part)
-   mailServer = smtplib.SMTP("smtp.gmail.com", 587)
-   mailServer.ehlo()
-   mailServer.starttls()
-   mailServer.ehlo()
-   mailServer.login(GMAIL_USER, GMAIL_PWD)
-   mailServer.sendmail(GMAIL_USER, to, msg.as_string())
-   mailServer.close()
+def send_mail(to, subject, text, attach=None):
+    log.info("sending email")
+    session = smtplib.SMTP('smtp.gmail.com', 587)
+    session.ehlo()
+    session.starttls()
+    session.login(GMAIL_USER, GMAIL_PWD)
+    headers = " \n".join(["From: " + GMAIL_USER,
+                          "Subject: " + subject,
+                          "To: " + " ,".join(to),
+                          "mime-version: 1.0",
+                          "content-type: text/html"])
+
+    # body_of_email can be plaintext or html!
+    content = headers + "\r\n\r\n" + text
+    session.sendmail(GMAIL_USER, to, text)
+    session.close()
 
 def main():
     court = 0
-    display = Display(visible=VISIBILITY, size=(800, 600))
+    display = Display(visible=0, size=(800, 600))
     display.start()
-
-    logging.basicConfig(filename='golden_lane.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
-    log = logging.getLogger("golden_lane")
 
     now = datetime.now()
 
@@ -163,14 +158,14 @@ def main():
         sys.exit()
 
     # confirm booking
-    # element = driver.find_element_by_name(CONFIRM)
+    element = driver.find_element_by_name(CONFIRM)
     # TODO uncomment to actually book, then check for response
-    # element.click()
+    #element.click()
 
     log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
-    mail("stefano.borgia@gmail.com",
-         "Tennis (Court {0})".format(court),
-         "day: {0}".format(start_day_to_book))
+    send_mail(TO,
+              "Tennis (Court {0})".format(court),
+              "day: {0}".format(start_day_to_book))
 
     # close selenium
     driver.close()

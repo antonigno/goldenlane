@@ -1,13 +1,15 @@
 [main]
 BASE_URL = https://online.fusion-lifestyle.com/Connect3/MRMLogin.aspx
+VISIBILITY = True
 
 [goldenlane]
 LOGIN = <GOLDENLANE LOGIN>
 PASSWORD = <GOLDENLANE PASSWORD>
 
-[gmail]
+[mail]
 LOGIN = <YOUR GMAIL LOGIN>
 PASSWORD = <YOUR GMAIL PASSWORD>
+TO = <LIST OF COMMA SEPARATED RECIPIENTS TO SEND EMAIL TO>
 
 [booking]
 DAYS_AHEAD = 7
