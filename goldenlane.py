@@ -35,9 +35,23 @@ START_TIME = cfg.get('booking', 'START_TIME')
 END_TIME = cfg.get('booking', 'END_TIME')
 DAYS_AHEAD = cfg.get('booking', 'DAYS_AHEAD')
 
+# confirm booking
+_booking = cfg.get('booking', 'BOOKING')
+if _booking in ['True', 'true']:
+    BOOKING = True
+else:
+    BOOKING = False
+
+# email sending
+_email = cfg.get('booking', 'EMAIL')
+if _email in ['True', 'true']:
+    EMAIL = True
+else:
+    EMAIL = False
+
 # the browser visibility
-visibility_bool = cfg.get('main', 'VISIBILITY')
-if visibility_bool in ['True', 'true']:
+_visibility = cfg.get('main', 'VISIBILITY')
+if _visibility in ['True', 'true']:
     VISIBILITY = True
 else:
     VISIBILITY = False
@@ -77,7 +91,7 @@ def send_mail(to, subject, text, attach=None):
 
 
 def main():
-    display = Display(visible=0, size=(1024, 768))
+    display = Display(visible=VISIBILITY, size=(1024, 768))
     display.start()
 
     now = datetime.now()
@@ -158,14 +172,17 @@ def main():
         sys.exit()
 
     # confirm booking
-    element = driver.find_element_by_name(CONFIRM)
-    # TODO uncomment to actually book, then check for response
-    #element.click()
+    if BOOKING:
+        element = driver.find_element_by_name(CONFIRM)
+        element.click()
 
     log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
-    send_mail(TO,
-              "Golden Lane {0} Court {1}".format(start_day_to_book, court),
-              "day: {0}".format(start_day_to_book))
+
+    # send email
+    if EMAIL:
+        send_mail(TO,
+                  "Golden Lane {0} Court {1}".format(start_day_to_book, court),
+                  "day: {0}".format(start_day_to_book))
 
     # close selenium
     driver.close()

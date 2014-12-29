@@ -12,6 +12,10 @@ PASSWORD = <YOUR GMAIL PASSWORD>
 TO = <LIST OF COMMA SEPARATED RECIPIENTS TO SEND EMAIL TO>
 
 [booking]
+# True to send booking
+EMAIL = True
+# True to perform booking
+BOOKING = False
 DAYS_AHEAD = 7
 # only hour
 START_TIME = 12
