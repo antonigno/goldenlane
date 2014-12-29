@@ -59,7 +59,7 @@ COURTS = {"ctl00$MainContent$grdResourceView$ctl02$ctl00": 1,
 
 
 def send_mail(to, subject, text, attach=None):
-    log.info("sending email")
+    log.info("sending email...")
     session = smtplib.SMTP('smtp.gmail.com', 587)
     session.ehlo()
     session.starttls()
@@ -70,14 +70,14 @@ def send_mail(to, subject, text, attach=None):
                           "mime-version: 1.0",
                           "content-type: text/html"])
 
-    # body_of_email can be plaintext or html!
     content = headers + "\r\n\r\n" + text
-    session.sendmail(GMAIL_USER, to, text)
+    session.sendmail(GMAIL_USER, to, content)
     session.close()
+    log.info("Done")
+
 
 def main():
-    court = 0
-    display = Display(visible=0, size=(800, 600))
+    display = Display(visible=0, size=(1024, 768))
     display.start()
 
     now = datetime.now()
@@ -164,7 +164,7 @@ def main():
 
     log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
     send_mail(TO,
-              "Tennis (Court {0})".format(court),
+              "Golden Lane {0} Court {1}".format(start_day_to_book, court),
               "day: {0}".format(start_day_to_book))
 
     # close selenium
