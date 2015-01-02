@@ -10,12 +10,35 @@ from dateutil.relativedelta import *
 import sys
 from pyvirtualdisplay import Display
 from ConfigParser import SafeConfigParser
+import argparse
 import logging
 import logging.config
-
 import smtplib
 
-logging.basicConfig(filename='goldenlane.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+parser = argparse.ArgumentParser(description='Book a tennis court at Goldenlane Leisure Center.')
+
+parser.add_argument('-d', '--debug',
+                    dest='debug',
+                    action="store_true",
+                    default=False,
+                    help='write debug info on log file')
+
+parser.add_argument('-c', '--crontab',
+                    dest='cron',
+                    action="store_true",
+                    default=False,
+                    help="if run from crontab don't use xephyr display")
+
+args = parser.parse_args()
+
+if args.debug:
+    LOG_LEVEL = logging.DEBUG
+else:
+    LOG_LEVEL = logging.INFO
+
+CRON = args.cron
+
+logging.basicConfig(filename='goldenlane.log', level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger("goldenlane")
 
 CONFIG_FILE = "goldenlane.conf"
@@ -91,8 +114,9 @@ def send_mail(to, subject, text, attach=None):
 
 
 def main():
-    display = Display(visible=VISIBILITY, size=(1024, 768))
-    display.start()
+    if not CRON:
+        display = Display(visible=VISIBILITY, size=(1024, 768))
+        display.start()
 
     now = datetime.now()
 
@@ -187,8 +211,9 @@ def main():
     # close selenium
     driver.close()
 
-    # close xephyr
-    display.stop()
+    if not CRON:
+        # close xephyr
+        display.stop()
 
 if __name__ == "__main__":
     main()
