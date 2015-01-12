@@ -126,7 +126,8 @@ def main():
 
     log.info("booking outdoor tennis on day {0}".format(start_day_to_book))
 
-    driver = webdriver.Firefox()
+    # driver = webdriver.Firefox()
+    driver = webdriver.Chrome()
     driver.implicitly_wait(20)
 
     # wait
