@@ -50,13 +50,11 @@ cfg.read(CONFIG_FILE)
 # Load configuration
 LOGIN = cfg.get('goldenlane', 'LOGIN')
 PWD = cfg.get('goldenlane', 'PASSWORD')
-GMAIL_USER = cfg.get('mail', 'LOGIN')
-GMAIL_PWD = cfg.get('mail', 'PASSWORD')
 TO = cfg.get('mail', 'TO').split(',')
 BASE_URL = cfg.get('main', 'BASE_URL')
 START_TIME = cfg.get('booking', 'START_TIME')
 END_TIME = cfg.get('booking', 'END_TIME')
-DAYS_AHEAD = cfg.get('booking', 'DAYS_AHEAD')
+DAYS_AHEAD = int(cfg.get('booking', 'DAYS_AHEAD'))
 
 # confirm booking
 _booking = cfg.get('booking', 'BOOKING')
@@ -69,6 +67,8 @@ else:
 _email = cfg.get('booking', 'EMAIL')
 if _email in ['True', 'true']:
     EMAIL = True
+    GMAIL_USER = cfg.get('mail', 'LOGIN')
+    GMAIL_PWD = cfg.get('mail', 'PASSWORD')
 else:
     EMAIL = False
 
@@ -92,7 +92,9 @@ RESULT_LINK = "ctl00_MainContent__advanceSearchResultsUserControl_Activities_ctl
 NEXT_DAY = "ctl00$MainContent$btnNextDate"
 CONFIRM = "ctl00$MainContent$btnBook"
 COURTS = {"ctl00$MainContent$grdResourceView$ctl02$ctl00": 1,
-          "ctl00$MainContent$grdResourceView$ctl02$ctl01": 2}
+          "ctl00$MainContent$grdResourceView$ctl02$ctl01": 2,
+          "ctl00$MainContent$grdResourceView$ctl03$ctl02": 1, # TODO check this
+          "ctl00$MainContent$grdResourceView$ctl03$ctl00": 2,}
 
 
 def send_mail(to, subject, text, attach=None):
@@ -179,12 +181,13 @@ def main():
     element = driver.find_element_by_id(RESULT_LINK)
     element.click()
 
-    # cycle the next day button 7 times
-    for _ in xrange(6):
+    # cycle the next day button DAYS_AHEAD times
+    for _ in xrange(DAYS_AHEAD):
         element = driver.find_element_by_name(NEXT_DAY)
         element.click()
 
     # book court TODO select court 1 or 2
+    booked = False
     try:
         elements = driver.find_elements_by_xpath("//td[@class='itemavailable']/input[@class='removeUnderLineAvailable']")
         for element in elements:
@@ -193,15 +196,18 @@ def main():
                 element.click()
                 booked = True
     except NoSuchElementException:
-        log.info("No courts available for day {0}".format(start_day_to_book))
+        log.info("No courts available on day {0}".format(start_day_to_book))
+        sys.exit()
+
+    if not booked:
+        log.info("No courts available on day {0}".format(start_day_to_book))
         sys.exit()
 
     # confirm booking
     if BOOKING:
         element = driver.find_element_by_name(CONFIRM)
         element.click()
-
-    log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
+        log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
 
     # send email
     if EMAIL:
