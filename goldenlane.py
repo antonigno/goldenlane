@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.by import By
 
@@ -93,8 +93,8 @@ NEXT_DAY = "ctl00$MainContent$btnNextDate"
 CONFIRM = "ctl00$MainContent$btnBook"
 COURTS = {"ctl00$MainContent$grdResourceView$ctl02$ctl00": 1,
           "ctl00$MainContent$grdResourceView$ctl02$ctl01": 2,
-          "ctl00$MainContent$grdResourceView$ctl03$ctl02": 1, # TODO check this
-          "ctl00$MainContent$grdResourceView$ctl03$ctl00": 2,}
+          "ctl00$MainContent$grdResourceView$ctl03$ctl02": 1,  # TODO check this
+          "ctl00$MainContent$grdResourceView$ctl03$ctl00": 2}
 
 
 def send_mail(to, subject, text, attach=None):
@@ -115,6 +115,17 @@ def send_mail(to, subject, text, attach=None):
     log.info("Done")
 
 
+def is_court_booked(day):
+    try:
+        lockfile = open("goldenlane.lock", "r")
+        for line in lockfile:
+            if day in line:
+                return True
+    except:
+        return False
+    return False
+
+
 def main():
     if not CRON:
         display = Display(visible=VISIBILITY, size=(1024, 768))
@@ -122,18 +133,22 @@ def main():
 
     now = datetime.now()
 
-    booked = False  # booked flag
-    start_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(START_TIME)
-    end_day_to_book = (now + relativedelta(weeks=+1)).strftime("%d/%m/%Y") + " {0}:00:00".format(END_TIME)
+    today = (now + relativedelta(days=+DAYS_AHEAD)).strftime("%d/%m/%Y")
+    start_day_to_book = today + " {0}:00:00".format(START_TIME)
+    end_day_to_book = today + " {0}:00:00".format(END_TIME)
 
+    # check that the court isn't already been booked
+    if is_court_booked(today):
+        log.info("a court has been booked already for day {0}".format(today))
+        sys.exit()
     log.info("booking outdoor tennis on day {0}".format(start_day_to_book))
 
     # driver = webdriver.Firefox()
     driver = webdriver.Chrome()
-    driver.implicitly_wait(20)
+    driver.implicitly_wait(5)
 
     # wait
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 5)
 
     driver.get(BASE_URL)
 
@@ -170,9 +185,23 @@ def main():
     select.select_by_value(END_TIME)
 
     # click search button
-    element = wait.until(expected_conditions.element_to_be_clickable((By.ID, SEARCH_BUTTON)))
-    # element = driver.find_element_by_id(SEARCH_BUTTON)
-    element.click()
+    search_button_active = False
+    count = 1
+    while not search_button_active and count < 5:
+        try:
+            element = wait.until(expected_conditions.element_to_be_clickable((By.ID, SEARCH_BUTTON)))
+            # element = driver.find_element_by_id(SEARCH_BUTTON)
+            element.click()
+            search_button_active = True
+        except StaleElementReferenceException:
+            log.info('search button not yet available')
+        if not search_button_active:
+            count += 1
+            log.info('waiting for the search button to become active')
+
+    if not search_button_active:
+        log.error('search button not available')
+        sys.exit()
 
     # wait until the search has been performed (the search button is no more clickable)
     _element = wait.until_not(expected_conditions.element_to_be_clickable((By.ID, SEARCH_BUTTON)))
@@ -181,33 +210,50 @@ def main():
     element = driver.find_element_by_id(RESULT_LINK)
     element.click()
 
+
     # cycle the next day button DAYS_AHEAD times
     for _ in xrange(DAYS_AHEAD):
         element = driver.find_element_by_name(NEXT_DAY)
         element.click()
 
+    # check if the court has
     # book court TODO select court 1 or 2
     booked = False
-    try:
-        elements = driver.find_elements_by_xpath("//td[@class='itemavailable']/input[@class='removeUnderLineAvailable']")
-        for element in elements:
-            if not booked:
-                court = COURTS[element.get_attribute('name')]
-                element.click()
-                booked = True
-    except NoSuchElementException:
-        log.info("No courts available on day {0}".format(start_day_to_book))
-        sys.exit()
+    count = 1
+    while not booked and count < 5:
+        try:
+            log.info('looking for a free court.')
+            elements = driver.find_elements_by_xpath("//td[@class='itemavailable']/input[@class='removeUnderLineAvailable']")
+            for element in elements:
+                if not booked:
+                    court = COURTS[element.get_attribute('name')]
+                    element.click()
+                    booked = True
+        except NoSuchElementException:
+            pass
+        if not booked:
+            log.info("No courts available on day {0}. Trying again in 5 seconds. {1} tries remaining".format(
+                start_day_to_book,
+                5 - count))
+            count += 1
 
     if not booked:
         log.info("No courts available on day {0}".format(start_day_to_book))
+        driver.close()
         sys.exit()
 
     # confirm booking
     if BOOKING:
         element = driver.find_element_by_name(CONFIRM)
         element.click()
+        with open('goldenlane.lock', "a") as lockfile:
+            lockfile.write(today+'\n')
         log.info("booked court nr {0} for day {1}".format(court, start_day_to_book))
+    else:
+
+        # with open('goldenlane.lock', "a") as lockfile:
+        #     lockfile.write(today+'\n')
+        log.info("court wasn't booked because BOOKING property is set to False")
 
     # send email
     if EMAIL:
