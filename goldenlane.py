@@ -91,10 +91,11 @@ SEARCH_BUTTON = "ctl00_MainContent__advanceSearchUserControl__searchBtn"
 RESULT_LINK = "ctl00_MainContent__advanceSearchResultsUserControl_Activities_ctl02_Activity"  # TODO sistemare
 NEXT_DAY = "ctl00$MainContent$btnNextDate"
 CONFIRM = "ctl00$MainContent$btnBook"
-COURTS = {"ctl00$MainContent$grdResourceView$ctl02$ctl00": 1,
-          "ctl00$MainContent$grdResourceView$ctl02$ctl01": 2,
-          "ctl00$MainContent$grdResourceView$ctl03$ctl02": 1,  # TODO check this
-          "ctl00$MainContent$grdResourceView$ctl03$ctl00": 2}
+COURTS = {"ctl00$MainContent$grdResourceView$ctl04$ctl00": 1,
+          "ctl00$MainContent$grdResourceView$ctl04$ctl01": 2,
+          #"ctl00$MainContent$grdResourceView$ctl03$ctl02": 1,  # TODO check this
+          #"ctl00$MainContent$grdResourceView$ctl03$ctl00": 2
+}
 
 
 def send_mail(to, subject, text, attach=None):
@@ -132,6 +133,7 @@ def main():
         display.start()
 
     now = datetime.now()
+    browser = webdriver.Chrome()
 
     today = (now + relativedelta(days=+DAYS_AHEAD)).strftime("%d/%m/%Y")
     start_day_to_book = today + " {0}:00:00".format(START_TIME)
@@ -143,12 +145,17 @@ def main():
         sys.exit()
     log.info("booking outdoor tennis on day {0}".format(start_day_to_book))
 
+    options = webdriver.ChromeOptions()
+    options.binary_location = '/opt/google/chrome/google-chrome'
     # driver = webdriver.Firefox()
-    driver = webdriver.Chrome()
-    driver.implicitly_wait(5)
+    driver = webdriver.Chrome('/usr/bin/chromedriver',
+                              chrome_options=options,
+                              service_args=['--verbose'],
+                              service_log_path='/home/isamicaste/python/goldenlane/chrome_driver.log')
+    driver.implicitly_wait(2)
 
     # wait
-    wait = WebDriverWait(driver, 5)
+    wait = WebDriverWait(driver, 2)
 
     driver.get(BASE_URL)
 
@@ -187,7 +194,7 @@ def main():
     # click search button
     search_button_active = False
     count = 1
-    while not search_button_active and count < 5:
+    while not search_button_active and count < 400:
         try:
             element = wait.until(expected_conditions.element_to_be_clickable((By.ID, SEARCH_BUTTON)))
             # element = driver.find_element_by_id(SEARCH_BUTTON)
@@ -220,7 +227,7 @@ def main():
     # book court TODO select court 1 or 2
     booked = False
     count = 1
-    while not booked and count < 5:
+    while not booked and count < 400:
         try:
             log.info('looking for a free court.')
             elements = driver.find_elements_by_xpath("//td[@class='itemavailable']/input[@class='removeUnderLineAvailable']")
@@ -230,16 +237,17 @@ def main():
                     element.click()
                     booked = True
         except NoSuchElementException:
-            pass
+            log.debug('NoSuchElementException')
         if not booked:
             log.info("No courts available on day {0}. Trying again in 5 seconds. {1} tries remaining".format(
                 start_day_to_book,
-                5 - count))
+                400 - count))
             count += 1
 
     if not booked:
         log.info("No courts available on day {0}".format(start_day_to_book))
-        driver.close()
+        driver.quit()
+        browser.quit()
         sys.exit()
 
     # confirm booking
@@ -262,11 +270,11 @@ def main():
                   "day: {0}".format(start_day_to_book))
 
     # close selenium
-    driver.close()
-
+    driver.quit()
     if not CRON:
         # close xephyr
         display.stop()
-
+        browser.quit()
+        sys.exit()
 if __name__ == "__main__":
     main()
